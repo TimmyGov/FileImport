@@ -28,25 +28,31 @@ public class XlsxFileParser : IFileParser
     private FileImportResult ParseWorkbook(string filePath)
     {
         var stopwatch = Stopwatch.StartNew();
-        var fileInfo = new FileInfo(filePath);
-
-        var metadata = new FileMetadata
-        {
-            FilePath = filePath,
-            FileName = fileInfo.Name,
-            FileType = FileType.XLSX,
-            FileSize = fileInfo.Length,
-            CreatedAt = fileInfo.CreationTimeUtc
-        };
 
         var result = new FileImportResult
         {
-            Metadata = metadata,
+            Metadata = new FileMetadata
+            {
+                FilePath = filePath,
+                FileName = Path.GetFileName(filePath),
+                FileType = FileType.XLSX
+            },
             Success = false
         };
 
         try
         {
+            if (!File.Exists(filePath))
+            {
+                result.ErrorMessage = $"File not found: {filePath}";
+                stopwatch.Stop();
+                result.ParseDuration = stopwatch.Elapsed;
+                return result;
+            }
+
+            var fileInfo = new FileInfo(filePath);
+            result.Metadata.FileSize = fileInfo.Length;
+            result.Metadata.CreatedAt = fileInfo.CreationTimeUtc;
             using var workbook = new XLWorkbook(filePath);
             var worksheet = workbook.Worksheets.First();
 
@@ -95,7 +101,7 @@ public class XlsxFileParser : IFileParser
             _logger.LogInformation(
                 "Successfully parsed {RowCount} rows from XLSX file {FileName}",
                 parsedRows.Count,
-                metadata.FileName);
+                result.Metadata.FileName);
         }
         catch (Exception ex)
         {
@@ -104,7 +110,7 @@ public class XlsxFileParser : IFileParser
             result.ErrorMessage = ex.Message;
             result.ParseDuration = stopwatch.Elapsed;
 
-            _logger.LogError(ex, "Error parsing XLSX file {FileName}", metadata.FileName);
+            _logger.LogError(ex, "Error parsing XLSX file {FileName}", result.Metadata.FileName);
         }
 
         return result;

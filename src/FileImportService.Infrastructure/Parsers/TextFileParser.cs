@@ -22,25 +22,31 @@ public class TextFileParser : IFileParser
     public async Task<FileImportResult> ParseAsync(string filePath, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
-        var fileInfo = new FileInfo(filePath);
-
-        var metadata = new FileMetadata
-        {
-            FilePath = filePath,
-            FileName = fileInfo.Name,
-            FileType = FileType.TXT,
-            FileSize = fileInfo.Length,
-            CreatedAt = fileInfo.CreationTimeUtc
-        };
 
         var result = new FileImportResult
         {
-            Metadata = metadata,
+            Metadata = new FileMetadata
+            {
+                FilePath = filePath,
+                FileName = Path.GetFileName(filePath),
+                FileType = FileType.TXT
+            },
             Success = false
         };
 
         try
         {
+            if (!File.Exists(filePath))
+            {
+                result.ErrorMessage = $"File not found: {filePath}";
+                stopwatch.Stop();
+                result.ParseDuration = stopwatch.Elapsed;
+                return result;
+            }
+
+            var fileInfo = new FileInfo(filePath);
+            result.Metadata.FileSize = fileInfo.Length;
+            result.Metadata.CreatedAt = fileInfo.CreationTimeUtc;
             var lines = await File.ReadAllLinesAsync(filePath, cancellationToken);
             var parsedRows = new List<ParsedRow>();
             var rowNumber = 1;
@@ -64,7 +70,7 @@ public class TextFileParser : IFileParser
             _logger.LogInformation(
                 "Successfully parsed {RowCount} rows from text file {FileName}",
                 parsedRows.Count,
-                metadata.FileName);
+                result.Metadata.FileName);
         }
         catch (Exception ex)
         {
@@ -73,7 +79,7 @@ public class TextFileParser : IFileParser
             result.ErrorMessage = ex.Message;
             result.ParseDuration = stopwatch.Elapsed;
 
-            _logger.LogError(ex, "Error parsing text file {FileName}", metadata.FileName);
+            _logger.LogError(ex, "Error parsing text file {FileName}", result.Metadata.FileName);
         }
 
         return result;

@@ -26,4 +26,10 @@
     <ProjectReference Include="..\..\src\FileImportService.Infrastructure\FileImportService.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Update="SampleFiles\**\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

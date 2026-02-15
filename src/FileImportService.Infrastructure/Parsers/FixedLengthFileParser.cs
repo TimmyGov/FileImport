@@ -28,25 +28,31 @@ public class FixedLengthFileParser : IFileParser
     public async Task<FileImportResult> ParseAsync(string filePath, CancellationToken cancellationToken = default)
     {
         var stopwatch = Stopwatch.StartNew();
-        var fileInfo = new FileInfo(filePath);
-
-        var metadata = new FileMetadata
-        {
-            FilePath = filePath,
-            FileName = fileInfo.Name,
-            FileType = FileType.FixedLength,
-            FileSize = fileInfo.Length,
-            CreatedAt = fileInfo.CreationTimeUtc
-        };
 
         var result = new FileImportResult
         {
-            Metadata = metadata,
+            Metadata = new FileMetadata
+            {
+                FilePath = filePath,
+                FileName = Path.GetFileName(filePath),
+                FileType = FileType.FixedLength
+            },
             Success = false
         };
 
         try
         {
+            if (!File.Exists(filePath))
+            {
+                result.ErrorMessage = $"File not found: {filePath}";
+                stopwatch.Stop();
+                result.ParseDuration = stopwatch.Elapsed;
+                return result;
+            }
+
+            var fileInfo = new FileInfo(filePath);
+            result.Metadata.FileSize = fileInfo.Length;
+            result.Metadata.CreatedAt = fileInfo.CreationTimeUtc;
             var config = _options.FileTypes.GetValueOrDefault("FixedLength");
             if (config == null || !config.ColumnDefinitions.Any())
             {
@@ -85,7 +91,7 @@ public class FixedLengthFileParser : IFileParser
             _logger.LogInformation(
                 "Successfully parsed {RowCount} rows from fixed-length file {FileName}",
                 parsedRows.Count,
-                metadata.FileName);
+                result.Metadata.FileName);
         }
         catch (Exception ex)
         {
@@ -94,7 +100,7 @@ public class FixedLengthFileParser : IFileParser
             result.ErrorMessage = ex.Message;
             result.ParseDuration = stopwatch.Elapsed;
 
-            _logger.LogError(ex, "Error parsing fixed-length file {FileName}", metadata.FileName);
+            _logger.LogError(ex, "Error parsing fixed-length file {FileName}", result.Metadata.FileName);
         }
 
         return result;
