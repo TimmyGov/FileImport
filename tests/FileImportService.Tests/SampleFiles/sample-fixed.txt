@@ -1,0 +1,5 @@
+0001      John Doe              1000.50       
+0002      Jane Smith            2500.75       
+0003      Bob Johnson           0750.00       
+0004      Alice Williams        3200.25       
+0005      Charlie Brown         1800.00       
